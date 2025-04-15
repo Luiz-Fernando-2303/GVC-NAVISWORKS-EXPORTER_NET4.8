@@ -3,11 +3,8 @@ using Autodesk.Navisworks.Api.ComApi;
 using Autodesk.Navisworks.Api.Interop.ComApi;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Windows.Forms;
-using Assimp;
 
 namespace GVC_EXPORTER_PLUGIN.Functions.Geometry
 {

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Windows.Forms;
 using Autodesk.Navisworks.Api;
 using GVC_EXPORTER_PLUGIN.Functions;
 using GVC_EXPORTER_PLUGIN.Functions.Chunks;
@@ -78,7 +77,6 @@ namespace GVC_EXPORTER_PLUGIN
                 Context.Instance.ModelBox = originalModelBox;
                 Context.Instance.chunks = originalChunks;
 
-                MessageBox.Show("Erro: Set context: ", ex.Message);
                 throw;
             }
         }
