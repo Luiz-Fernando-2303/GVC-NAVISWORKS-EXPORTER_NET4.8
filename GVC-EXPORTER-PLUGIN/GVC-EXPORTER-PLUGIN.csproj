@@ -36,9 +36,11 @@
   <ItemGroup>
     <Compile Include="Context.cs" />
     <Compile Include="Functions\Binary_\Chunks.cs" />
+    <Compile Include="Functions\Binary_\Context.cs" />
     <Compile Include="Functions\Binary_\PointCloud.cs" />
     <Compile Include="Functions\Chunks\ChuncksFunctions.cs" />
     <Compile Include="Functions\Geometry\GeometryFunctions.cs" />
+    <Compile Include="Functions\Nelson\SectorClassifierMethods.cs" />
     <Compile Include="Functions\PointCloud\PointCloudFunctions.cs" />
     <Compile Include="Functions\Types.cs" />
     <Compile Include="Loader.cs" />

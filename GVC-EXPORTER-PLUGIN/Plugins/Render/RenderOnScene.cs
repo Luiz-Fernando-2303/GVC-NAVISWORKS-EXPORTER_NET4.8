@@ -5,69 +5,48 @@ using System.Collections.Generic;
 
 namespace GVC_EXPORTER_PLUGIN.Plugins.Render
 {
-    
     public class RenderOnScene : RenderPlugin
     {
         public override void Render(View view, Graphics graphics)
         {
-            if (!RenderController.Enabled || Application.ActiveDocument == null || Application.ActiveDocument.IsClear)
+            if (!RenderController.Enabled || 
+                Application.ActiveDocument == null || 
+                Application.ActiveDocument.IsClear)
                 return;
-            
-            RenderChunk(graphics);
+
+            RenderBoundingBoxes(graphics);
         }
 
-        private void RenderChunk(Graphics graphics)
+        private void RenderBoundingBoxes(Graphics graphics)
         {
-            var box = new Box(Color.Red, 1, RenderController.chunk.BoundingBox) { render = true, LineWidth = 2 };
+            DrawBoundingBox(graphics, RenderController.chunk.BoundingBox, Color.Red, 2);
 
-            var boxList = new List<Box>();
-            foreach (var b in RenderController.chunk.Items)
-                boxList.Add(new Box(Color.Green, 1, b.BoundingBox()) { render = true, LineWidth = 1 });
-
-            foreach (var box_ in boxList)
+            foreach (var item in RenderController.chunk.Items)
             {
-                graphics.LineWidth(box_.LineWidth);
-                graphics.Color(box_.color, box.alpha);
-                foreach (var (a, b) in box_.edges)
-                    graphics.Line(box_.point3Ds[a], box_.point3Ds[b]);
+                var itemBox = item.BoundingBox();
+                DrawBoundingBox(graphics, itemBox, Color.Blue, 1);
             }
-
-            graphics.LineWidth(box.LineWidth);
-            graphics.Color(box.color, box.alpha);
-
-            foreach (var (a, b) in box.edges)
-                graphics.Line(box.point3Ds[a], box.point3Ds[b]);
-        }
-    }
-
-    public static class RenderController
-    {
-        public static bool Enabled = false;
-        public static Chunk chunk = new Chunk();
-    }
-
-    public class Box
-    {
-        public bool render = false;
-        public Color color;
-        public double alpha = 1.0;
-        public int LineWidth = 1;
-        public BoundingBox3D box { get; set; }
-        public List<Point3D> point3Ds = new List<Point3D>();
-        public List<(int, int)> edges = new List<(int, int)>();
-
-        public Box(Color color_, double alpha_, BoundingBox3D box_)
-        {
-            this.color = color_;
-            this.alpha = alpha_;
-            this.box = box_;
-
-            if (box_ != null) VertexBuilding();
         }
 
-        internal void VertexBuilding()
+        private void DrawBoundingBox(Graphics graphics, BoundingBox3D box, Color color, int lineWidth)
         {
-            var pointsList = new[]
+            if (box == null) return;
+
+            var points = GetBoxVertices(box);
+            var edges = GetBoxEdges();
+
+            graphics.LineWidth(lineWidth);
+            graphics.Color(color, 1.0);
+
+            foreach (var (a, b) in edges)
+            {
+                graphics.Line(points[a], points[b]);
+            }
+        }
+
+        private List<Point3D> GetBoxVertices(BoundingBox3D box)
+        {
+            return new List<Point3D>
             {
                 box.Min,
                 new Point3D(box.Max.X, box.Min.Y, box.Min.Z),
@@ -78,16 +57,22 @@ namespace GVC_EXPORTER_PLUGIN.Plugins.Render
                 box.Max,
                 new Point3D(box.Min.X, box.Max.Y, box.Max.Z)
             };
-
-            var edgesList = new[]
-            {
-                (0,1), (1,2), (2,3), (3,0),
-                (4,5), (5,6), (6,7), (7,4),
-                (0,4), (1,5), (2,6), (3,7)
-            };
-
-            this.point3Ds = new List<Point3D>(pointsList);
-            this.edges = new List<(int, int)>(edgesList);
         }
+
+        private List<(int, int)> GetBoxEdges()
+        {
+            return new List<(int, int)>
+            {
+                (0, 1), (1, 2), (2, 3), (3, 0), // base
+                (4, 5), (5, 6), (6, 7), (7, 4), // top
+                (0, 4), (1, 5), (2, 6), (3, 7)  // verticals
+            };
+        }
+    }
+
+    public static class RenderController
+    {
+        public static bool Enabled = false;
+        public static Chunk chunk = new Chunk();
     }
 }

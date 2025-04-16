@@ -224,18 +224,6 @@ namespace GVC_EXPORTER_PLUGIN.Plugins.Ui
                 AutoSize = true
             };
 
-            //var btnRenderChunk = new Button
-            //{
-            //    Text = "Toggle chunk view",
-            //    Width = 130,
-            //    Height = 30,
-            //};
-            //btnRenderChunk.Click += (s, e) =>
-            //{
-            //    RenderController.chunk = chunk;
-            //    RenderController.Enabled = !RenderController.Enabled;
-            //};
-
             var btnAddToSet = new Button
             {
                 Text = "Adicionar ao Set",
@@ -247,14 +235,11 @@ namespace GVC_EXPORTER_PLUGIN.Plugins.Ui
                 ContextInitializer.ChunskToSets(chunk);
             };
 
-            //buttonPanel.Controls.Add(btnRenderChunk);
             buttonPanel.Controls.Add(btnAddToSet);
 
-            // Monta tudo no layout
             layout.Controls.Add(contentPanel, 0, 0);
             layout.Controls.Add(buttonPanel, 0, 1);
 
-            // Adiciona ao painel principal
             chunkOptionsPanel.Controls.Add(layout);
         }
     }

@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using Autodesk.Navisworks.Api;
 using GVC_EXPORTER_PLUGIN.Functions;
 using GVC_EXPORTER_PLUGIN.Functions.Chunks;
@@ -59,19 +57,19 @@ namespace GVC_EXPORTER_PLUGIN
             {
                 PointCloudFunctions.ParallelModelPointCloud();
 
-                var allItems = Autodesk.Navisworks.Api.Application.ActiveDocument.Models
-                    .RootItemDescendantsAndSelf.Cast<Autodesk.Navisworks.Api.ModelItem>();
-                var filtered = allItems
-                    .Where(item => item.HasGeometry && item.BoundingBox() != null)
-                    .ToList();
+                var search = new Search();
+                search.Selection.SelectAll();
+                search.SearchConditions.Add(
+                    SearchCondition.HasCategoryByName(PropertyCategoryNames.Geometry)
+                );
+                var collection = search.FindAll(Application.ActiveDocument, false);
+                var debug = collection[10].Transform;
 
-                var collection = new Autodesk.Navisworks.Api.ModelItemCollection();
-                collection.AddRange(filtered);
                 Context.Instance.ModelBox = collection.BoundingBox();
 
                 ChuncksFunctions.BuildChunks(x, y, z, chunkThreads);
             }
-            catch (Exception ex)
+            catch
             {
                 Context.Instance.ModelPointCloud = originalModelPointCloud;
                 Context.Instance.ModelBox = originalModelBox;
