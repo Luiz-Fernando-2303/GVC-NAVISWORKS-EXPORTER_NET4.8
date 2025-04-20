@@ -35,15 +35,19 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Context.cs" />
-    <Compile Include="Functions\Binary_\Chunks.cs" />
-    <Compile Include="Functions\Binary_\Context.cs" />
-    <Compile Include="Functions\Binary_\PointCloud.cs" />
+    <Compile Include="Functions\_Binary\Chunks.cs" />
+    <Compile Include="Functions\_Binary\ChunkTree\Tree.cs" />
+    <Compile Include="Functions\_Binary\Context.cs" />
+    <Compile Include="Functions\_Binary\PointCloud.cs" />
     <Compile Include="Functions\Chunks\ChuncksFunctions.cs" />
     <Compile Include="Functions\Geometry\GeometryFunctions.cs" />
     <Compile Include="Functions\Nelson\SectorClassifierMethods.cs" />
     <Compile Include="Functions\PointCloud\PointCloudFunctions.cs" />
     <Compile Include="Functions\Types.cs" />
-    <Compile Include="Loader.cs" />
+    <Compile Include="Functions\_Binary\Render.cs" />
+    <Compile Include="Loader.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Plugins\Render\RenderOnScene.cs" />
     <Compile Include="Plugins\Ui\Ui.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
