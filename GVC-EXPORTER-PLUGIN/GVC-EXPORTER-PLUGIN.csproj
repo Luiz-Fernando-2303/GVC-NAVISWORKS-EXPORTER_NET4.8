@@ -41,7 +41,6 @@
     <Compile Include="Functions\_Binary\PointCloud.cs" />
     <Compile Include="Functions\Chunks\ChuncksFunctions.cs" />
     <Compile Include="Functions\Geometry\GeometryFunctions.cs" />
-    <Compile Include="Functions\Nelson\SectorClassifierMethods.cs" />
     <Compile Include="Functions\PointCloud\PointCloudFunctions.cs" />
     <Compile Include="Functions\Types.cs" />
     <Compile Include="Functions\_Binary\Render.cs" />
