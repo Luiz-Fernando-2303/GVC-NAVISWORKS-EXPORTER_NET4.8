@@ -2,15 +2,15 @@
 using System.Collections.Generic;
 using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.Plugins;
-using GVC_EXPORTER_PLUGIN.Functions._Binary.ChunkTree;
-using static GVC_EXPORTER_PLUGIN.Functions._Binary.Chunks_Oriented;
+using GVC_EXPORTER_PLUGIN.Functions;
+using GVC_EXPORTER_PLUGIN.Functions.Chunks;
 
-namespace GVC_EXPORTER_PLUGIN.Functions._Binary
+namespace GVC_EXPORTER_PLUGIN.Plugins
 {
     /// <summary>
     /// Plugin responsável pela renderização visual dos OBBs do modelo e dos chunks gerados.
     /// </summary>
-    public class OBB_Render : RenderPlugin
+    public class Render_Plugin : RenderPlugin
     {
         /// <summary>
         /// Função principal de renderização chamada pelo Navisworks.
@@ -19,26 +19,27 @@ namespace GVC_EXPORTER_PLUGIN.Functions._Binary
         {
             RenderModelOBB(view, graphics);
             RenderChunks(view, graphics);
-            //RenderChunkTree(graphics, Context.Instance._chunkTree);
         }
 
         /// <summary>
         /// Renderiza recursivamente um ChunkTree com suas caixas OBB.
         /// </summary>
-        private void RenderChunkTree(Graphics graphics, Tree.ChunkTree node, int depth = 0)
+        private void RenderChunkTree(Graphics graphics, ChunkTree node)
         {
-            if (node.Box == null) return;
+            if (node.Box == null || node.IsLeaf) return; // ← Pula folhas
 
-            // Exemplo: alternar cor por profundidade
-            var color = GetColorByDepth(depth);
-            DrawOBB(graphics, node.Box, color, 1);
+            // Apenas nós internos serão desenhados
+            var color = Color.Green;
+            var tickness = 4;
 
-            if (node.IsLeaf)
-                return;
+            DrawOBB(graphics, node.Box, color, tickness);
 
-            foreach (var child in node.Children)
+            if (node.Children != null)
             {
-                RenderChunkTree(graphics, child, depth + 1);
+                foreach (var child in node.Children)
+                {
+                    RenderChunkTree(graphics, child);
+                }
             }
         }
 
@@ -70,8 +71,8 @@ namespace GVC_EXPORTER_PLUGIN.Functions._Binary
 
             foreach (var chunk in Context.Instance._chunks)
             {
-                var obb = UnpackOBB(chunk);
-                DrawOBB(graphics, obb, Color.Red, 1);
+                var obb = Chunk_Functions.UnpackOBB(chunk);
+                DrawOBB(graphics, obb, Color.Blue, 1);
             }
         }
 
@@ -133,15 +134,11 @@ namespace GVC_EXPORTER_PLUGIN.Functions._Binary
         /// </summary>
         private Color GetColorByDepth(int depth)
         {
-            switch (depth % 5)
-            {
-                case 0: return Color.FromByteRGB(255, 0, 0);     // Vermelho
-                case 1: return Color.FromByteRGB(0, 255, 0);     // Verde
-                case 2: return Color.FromByteRGB(0, 0, 255);     // Azul
-                case 3: return Color.FromByteRGB(255, 165, 0);   // Laranja
-                case 4: return Color.FromByteRGB(255, 0, 255);   // Magenta
-                default: return Color.FromByteRGB(200, 200, 200); // Cinza claro (fallback)
-            }
+            // Rotaciona o espectro de cores
+            byte r = (byte)((128 + 64 * (depth % 4)) % 256);
+            byte g = (byte)((200 + 35 * (depth % 3)) % 256);
+            byte b = (byte)((100 + 90 * (depth % 5)) % 256);
+            return Color.FromByteRGB(r, g, b); // semi-transparente
         }
     }
 }

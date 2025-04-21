@@ -1,11 +1,16 @@
 ﻿using Autodesk.Navisworks.Api.Plugins;
-using GVC_EXPORTER_PLUGIN.Functions._Binary;
 using System.Windows.Forms;
 using System;
 using System.Threading;
 
 namespace GVC_EXPORTER_PLUGIN
 {
+    public static class SharedContext
+    {
+        public static ProgressMonitor monitorInstance;
+        public static Thread monitorThread;
+    }
+
     /// <summary>
     /// Dialogo de entrada para parâmetros de divisão em chunks (blocos espaciais).
     /// </summary>
@@ -135,7 +140,7 @@ namespace GVC_EXPORTER_PLUGIN
             TimeSpan elapsed = DateTime.Now - startTime;
             lblTimer.Text = $"Tempo: {elapsed:mm\\:ss}";
 
-            if (Functions._Binary.Context.Instance._metadata.TryGetValue("state", out var state))
+            if (Context.Instance._metadata.TryGetValue("state", out var state))
             {
                 var (name, total, current) = ((string, int, int))state;
 
@@ -187,7 +192,7 @@ namespace GVC_EXPORTER_PLUGIN
     /// Plugin de teste de renderização (pode ser usado para debug ou testes manuais).
     /// </summary>
     [Plugin("RenderModule", "ADSK", DisplayName = "RenderModule", ToolTip = "RenderModule")]
-    public class RENDER : OBB_Render { }
+    public class Render : Plugins.Render_Plugin { }
 
     /// <summary>
     /// Plugin principal para inicializar chunks e acompanhar o progresso.
@@ -195,9 +200,6 @@ namespace GVC_EXPORTER_PLUGIN
     [Plugin("ChunkMonitorPlugin", "ADSK", DisplayName = "Chunk Setup", ToolTip = "Initialize chunks and monitor progress")]
     public class ChunkMonitorPlugin : AddInPlugin
     {
-        private static Thread monitorThread;
-        private static ProgressMonitor monitorInstance;
-
         public override int Execute(params string[] parameters)
         {
             Autodesk.Navisworks.Api.Application.ActiveDocumentChanged += (s, e) => Unload();
@@ -213,17 +215,17 @@ namespace GVC_EXPORTER_PLUGIN
             double sizeZ = dialog.SizeZ;
             double angle = dialog.Angle;
 
-            if (monitorThread == null || !monitorThread.IsAlive)
+            if (SharedContext.monitorThread == null || !SharedContext.monitorThread.IsAlive)
             {
-                monitorThread = new Thread(() =>
+                SharedContext.monitorThread = new Thread(() =>
                 {
-                    monitorInstance = new ProgressMonitor();
-                    Application.Run(monitorInstance);
+                    SharedContext.monitorInstance = new ProgressMonitor();
+                    Application.Run(SharedContext.monitorInstance);
                 });
 
-                monitorThread.SetApartmentState(ApartmentState.STA);
-                monitorThread.IsBackground = true;
-                monitorThread.Start();
+                SharedContext.monitorThread.SetApartmentState(ApartmentState.STA);
+                SharedContext.monitorThread.IsBackground = true;
+                SharedContext.monitorThread.Start();
             }
 
             OBB_ContextInitializer.InitializeContext(sizeX, sizeY, sizeZ, angle);
@@ -239,16 +241,57 @@ namespace GVC_EXPORTER_PLUGIN
         {
             Context.Instance.Clear();
 
-            if (monitorInstance != null && !monitorInstance.IsDisposed)
+            if (SharedContext.monitorInstance != null && !SharedContext.monitorInstance.IsDisposed)
             {
-                monitorInstance.Invoke(new Action(() =>
+                SharedContext.monitorInstance.Invoke(new Action(() =>
                 {
-                    monitorInstance.Close();
+                    SharedContext.monitorInstance.Close();
                 }));
             }
 
-            monitorInstance = null;
-            monitorThread = null;
+            SharedContext.monitorInstance = null;
+            SharedContext.monitorThread = null;
+        }
+    }
+
+    [Plugin("DocumentWatcher", "YourCompany", ToolTip = "Watcher to clear context on document change", DisplayName = "Document Watcher")]
+    public class DocumentWatcherPlugin : EventWatcherPlugin
+    {
+        public override void OnLoaded()
+        {
+            Autodesk.Navisworks.Api.Application.ActiveDocumentChanged += OnDocumentChanged;
+            Autodesk.Navisworks.Api.Application.DocumentAdded += OnDocumentChanged;
+            Autodesk.Navisworks.Api.Application.DocumentRemoved += OnDocumentChanged;
+            Autodesk.Navisworks.Api.Application.MainDocumentChanged += OnDocumentChanged;
+        }
+
+        public override void OnUnloading()
+        {
+            Autodesk.Navisworks.Api.Application.ActiveDocumentChanged -= OnDocumentChanged;
+            Autodesk.Navisworks.Api.Application.DocumentAdded -= OnDocumentChanged;
+            Autodesk.Navisworks.Api.Application.DocumentRemoved -= OnDocumentChanged;
+            Autodesk.Navisworks.Api.Application.MainDocumentChanged -= OnDocumentChanged;
+        }
+
+        private void OnDocumentChanged(object sender, EventArgs e)
+        {
+            Unload();
+        }
+
+        private void Unload()
+        {
+            Context.Instance.Clear();
+
+            if (SharedContext.monitorInstance != null && !SharedContext.monitorInstance.IsDisposed)
+            {
+                SharedContext.monitorInstance.Invoke(new Action(() =>
+                {
+                    SharedContext.monitorInstance.Close();
+                }));
+            }
+
+            SharedContext.monitorInstance = null;
+            SharedContext.monitorThread = null;
         }
     }
 }

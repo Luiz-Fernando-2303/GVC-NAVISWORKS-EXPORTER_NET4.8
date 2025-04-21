@@ -5,12 +5,12 @@ using System.Linq;
 using System.Threading.Tasks;
 using Autodesk.Navisworks.Api;
 
-namespace GVC_EXPORTER_PLUGIN.Functions._Binary
+namespace GVC_EXPORTER_PLUGIN.Functions.PointCloud
 {
     /// <summary>
     /// Fornece utilitários para extração e empacotamento de dados de nuvem de pontos a partir de ModelItems do Navisworks.
     /// </summary>
-    internal class PointCloudExporter
+    internal class PointCloud_Functions
     {
         /// <summary>
         /// Recupera e empacota os pontos centrais de todos os ModelItems com geometria em arrays de bytes.
@@ -46,31 +46,28 @@ namespace GVC_EXPORTER_PLUGIN.Functions._Binary
         /// <returns>Um array de 44 bytes representando o item, ou null se o GUID estiver vazio.</returns>
         public static byte[] PackModelItemCenter(ModelItem modelItem)
         {
-            Guid guid = modelItem.InstanceGuid;
+            Guid guid = Guid.NewGuid();
 
-            if (guid == Guid.Empty)
+            try
             {
-                try
+                if (Context.Instance._EmptyGuids == null)
+                    Context.Instance._EmptyGuids = new Dictionary<string, ModelItem>();
+
+                if (Context.Instance._UsedGuids == null)
+                    Context.Instance._UsedGuids = new HashSet<string>();
+
+                do
                 {
-                    if (Context.Instance._EmptyGuids == null)
-                        Context.Instance._EmptyGuids = new Dictionary<string, ModelItem>();
-
-                    if (Context.Instance._UsedGuids == null)
-                        Context.Instance._UsedGuids = new HashSet<string>();
-
-                    do
-                    {
-                        guid = Guid.NewGuid();
-                    }
-                    while (Context.Instance._UsedGuids.Contains(guid.ToString()));
-
-                    Context.Instance._UsedGuids.Add(guid.ToString());
-                    Context.Instance._EmptyGuids[guid.ToString()] = modelItem;
+                    guid = Guid.NewGuid();
                 }
-                catch (Exception)
-                {
-                    return null;
-                }
+                while (Context.Instance._UsedGuids.Contains(guid.ToString()));
+
+                Context.Instance._UsedGuids.Add(guid.ToString());
+                Context.Instance._EmptyGuids[guid.ToString()] = modelItem;
+            }
+            catch (Exception)
+            {
+                return null;
             }
 
             try
@@ -109,25 +106,12 @@ namespace GVC_EXPORTER_PLUGIN.Functions._Binary
             Guid targetGuid = new Guid(guidBytes);
 
             var foundItems = new ModelItemCollection();
-            var allItems = Context.Instance._itemsR;
+            var allItems = Context.Instance._items;
 
-            Context.Instance._metadata["state"] = ("Searching items", allItems.Count, 0);
-
-            int count = 0;
-            foreach (var item in allItems)
+            var EmptySearch = Context.Instance._EmptyGuids.FirstOrDefault(x => x.Key == targetGuid.ToString()).Value;
+            if (EmptySearch != default)
             {
-                var EmptySearch = Context.Instance._EmptyGuids.FirstOrDefault(x => x.Key == targetGuid.ToString()).Value;
-                if (EmptySearch != default)
-                {
-                    foundItems.Add(EmptySearch);
-                    break;
-                }
-
-                foundItems.Add(item);
-                Context.Instance._itemsR.Remove(item);
-
-                count++;
-                Context.Instance._metadata["state"] = ("Searching items", allItems.Count, count);
+                foundItems.Add(EmptySearch);
             }
 
             return foundItems;
