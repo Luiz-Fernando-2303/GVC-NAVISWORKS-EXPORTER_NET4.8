@@ -1,11 +1,12 @@
 ﻿using Autodesk.Navisworks.Api;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace GVC_EXPORTER_PLUGIN.Functions
 {
     /// <summary>
-    /// Representa uma Oriented Bounding Box (OBB), com centro, eixos e extensões.
+    /// Represents an Oriented Bounding Box (OBB), with center, axes, and extents.
     /// </summary>
     public class OrientedBoundingBox
     {
@@ -27,7 +28,7 @@ namespace GVC_EXPORTER_PLUGIN.Functions
         }
 
         /// <summary>
-        /// Verifica se um ponto está contido dentro da OBB.
+        /// Checks if a point is inside the OBB.
         /// </summary>
         public bool Contains(Point3D p)
         {
@@ -39,7 +40,8 @@ namespace GVC_EXPORTER_PLUGIN.Functions
         }
 
         /// <summary>
-        /// Retorna os cantos da caixa
+        /// Returns the corners of the box.
+        /// </summary>
         public List<Point3D> GetCorners()
         {
             var corners = new List<Point3D>(8);
@@ -55,15 +57,44 @@ namespace GVC_EXPORTER_PLUGIN.Functions
 
             return corners;
         }
+
+        /// <summary>
+        /// Returns the axis-aligned bounding box (AABB) of the OBB.
+        /// </summary>
+        public BoundingBox3D GetAABB()
+        {
+            var corners = GetCorners();
+            return new BoundingBox3D(
+                new Point3D(
+                    corners.Min(p => p.X),
+                    corners.Min(p => p.Y),
+                    corners.Min(p => p.Z)
+                ),
+                new Point3D(
+                    corners.Max(p => p.X),
+                    corners.Max(p => p.Y),
+                    corners.Max(p => p.Z)
+                )
+            );
+        }
     }
 
     /// <summary>
-    /// Representa um nó da árvore de subdivisão espacial contendo um OBB e seus filhos.
+    /// Represents a point associated with a model item, including its OBB and chunk ID.
     /// </summary>
-    public class ChunkTree
+    public class BoxedModelitem
     {
-        public OrientedBoundingBox Box;
-        public List<ChunkTree> Children;
-        public bool IsLeaf => Children == null || Children.Count == 0;
+        public ModelItem ModelItem;
+        public OrientedBoundingBox OrientedBoundingBox;
+        public Point3D Center;
+        public int id;
+
+        public BoxedModelitem(ModelItem modelItem, OrientedBoundingBox box, int id_)
+        {
+            ModelItem = modelItem;
+            OrientedBoundingBox = box;
+            Center = OrientedBoundingBox.Center;
+            id = id_;
+        }
     }
 }
