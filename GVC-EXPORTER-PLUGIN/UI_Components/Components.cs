@@ -37,7 +37,7 @@ namespace GVC_EXPORTER_PLUGIN.UI_Components
                 Top = 10,
                 Width = 270,
                 Height = 20,
-                Text = "Time: 00:00"
+                Text = "00:00:00"
             };
 
             // Current process state
@@ -83,7 +83,7 @@ namespace GVC_EXPORTER_PLUGIN.UI_Components
         private void UpdateProgress()
         {
             TimeSpan elapsed = DateTime.Now - startTime;
-            lblTimer.Text = $"Time: {elapsed:hh\\:mm\\:ss}";
+            lblTimer.Text = $"{elapsed.Hours}:{elapsed.Minutes}:{elapsed.Seconds}";
 
             if (Context.Instance._state.TryGetValue("state", out var state))
             {
@@ -101,7 +101,7 @@ namespace GVC_EXPORTER_PLUGIN.UI_Components
                     if (total == 0 && current == 0)
                     {
                         progressBar.Visible = false;
-                        lblState.Text = $"State: {name}";
+                        lblState.Text = $"{name}";
                         if (!this.Visible) this.Show();
                         else if (name == "done") this.Hide();
 
@@ -111,17 +111,9 @@ namespace GVC_EXPORTER_PLUGIN.UI_Components
                     progressBar.Visible = true;
                     int percent = Math.Min(100, (int)((double)current / total * 100));
                     progressBar.Value = percent;
-                    lblState.Text = $"State: {name} ({current}/{total})";
+                    lblState.Text = $"{name} ({current}/{total})";
 
                     if (!this.Visible) this.Show();
-                }
-                else
-                {
-                    TimeSpan sinceLastUpdate = DateTime.Now - lastUpdateTime;
-                    if (sinceLastUpdate.TotalSeconds > 10)
-                    {
-                        lblTimer.Text = $"Time: {elapsed:hh\\:mm\\:ss}";
-                    }
                 }
             }
         }

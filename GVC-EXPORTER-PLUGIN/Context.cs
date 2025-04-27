@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Autodesk.Navisworks.Api;
 using GVC_EXPORTER_PLUGIN.Functions;
 using GVC_EXPORTER_PLUGIN.Functions.Clash_;
 using GVC_EXPORTER_PLUGIN.Functions.ModelItemBoxCreation;
-using GVC_EXPORTER_PLUGIN.Functions.Search_;
-using sw = System.Windows;
 
 namespace GVC_EXPORTER_PLUGIN
 {
@@ -45,7 +42,7 @@ namespace GVC_EXPORTER_PLUGIN
         {
             RotationCorrection = 0.0;
             _items = new ModelItemCollection();
-            _points = new List<BoxedModelitem>();
+            _points = new List<BoxedModelitem>(2_000_000);
             _ZonePoints = new List<BoxedModelitem>();
             _state = new Dictionary<string, (string, int, int)>();
         }
@@ -76,28 +73,17 @@ namespace GVC_EXPORTER_PLUGIN
                 Context.Instance.Clear();
                 Context.Instance.RotationCorrection = angleCorrection;
 
-                var allItems = new ModelItemCollection();
+                Context.Instance._state["state"] = ("Juntando ModelItems", 0, 0);
                 var models = Application.ActiveDocument.Models;
 
-                foreach (Model model in models)
-                {
-                    var root = model.RootItem;
-                    if (root != null)
-                    {
-                        allItems.AddRange(root.DescendantsAndSelf);
-                    }
-                }
 
-                Search_Functions.SearchQuadrant();
-
-                Context.Instance._items = allItems;
-                Context.Instance._points = ModelItemBoxCreation.GetPackedPoints(allItems);
+                var ModelItemsAccumulator = new List<ModelItem>(2_000_000);
+                ModelItemBoxCreation.RecursivePackPoints(models.RootItems, Context.Instance._points, ModelItemsAccumulator);
+                Context.Instance._items.AddRange(ModelItemsAccumulator);
 
                 Context.Instance._ZonePoints = ModelItemBoxCreation.GetPackedPoints(
                     Application.ActiveDocument.CurrentSelection.SelectedItems
                 );
-
-                Application.ActiveDocument.CurrentSelection.Clear();
 
                 Clash_Functions.RunZonesClash(
                     "Zone Detection",
@@ -105,7 +91,7 @@ namespace GVC_EXPORTER_PLUGIN
                     Context.Instance._points
                 );
 
-                Zone_Detection.AddZonesToItems();
+                Zone_Detection.AddZonesToitems();
 
             } catch
             {

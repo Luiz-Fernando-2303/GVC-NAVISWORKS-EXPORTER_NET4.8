@@ -9,6 +9,35 @@ namespace GVC_EXPORTER_PLUGIN.Functions.ModelItemBoxCreation
 {
     internal class ModelItemBoxCreation
     {
+        public static void RecursivePackPoints(ModelItemEnumerableCollection models, List<BoxedModelitem> accumulator, List<ModelItem> localItems)
+        {
+            var stack = new Stack<ModelItem>(models);
+
+            int count = 0;
+            Context.Instance._state["state"] = ("Gerando pontos", count, stack.Count);
+            while (stack.Count > 0)
+            {
+                var current = stack.Pop();
+                var children = current.Children.ToList(); 
+
+                if (children.Count == 0)
+                {
+                    var boxed = PackModelItemPoint(current);
+                    accumulator.Add(boxed);
+                    localItems.Add(current);
+                }
+                else
+                {
+                    foreach (var child in children)
+                    {
+                        stack.Push(child);
+                    }
+                }
+                count++;
+                Context.Instance._state["state"] = ("Gerando pontos", count, stack.Count);
+            }
+        }
+
         public static List<BoxedModelitem> GetPackedPoints(ModelItemCollection items = null)
         {
             var modelItems = items == null ? Context.Instance._items : items;

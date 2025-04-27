@@ -32,8 +32,6 @@ namespace GVC_EXPORTER_PLUGIN.Functions.Properties
 
             propVec.SetUserDefined(0, category, category, newPropVec);
             GC.KeepAlive(propVec);
-
-            System.Windows.Forms.Application.DoEvents();
         }
     }
 }

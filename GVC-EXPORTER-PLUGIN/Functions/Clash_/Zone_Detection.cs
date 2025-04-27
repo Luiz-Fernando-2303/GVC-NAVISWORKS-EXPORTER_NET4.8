@@ -7,26 +7,25 @@ namespace GVC_EXPORTER_PLUGIN.Functions.Clash_
 {
     internal class Zone_Detection
     {
-        public static void AddZonesToItems()
+        public static void AddZonesToitems()
         {
+            Application.ActiveDocument.CurrentSelection.Clear();
             var itemsWithZones = GetZoneGroupedPointsFromClash();
-            int processedCount = 0;
-
-            SetContextState("Adicionando propriedades", itemsWithZones.Count, 0);
-
-            // Fix for the errors related to deconstruction and type inference in the foreach loop
-            foreach (var kvp in itemsWithZones)
+            int count = 0;
+            Context.Instance._state["state"] = ("Adicionando propriedades", itemsWithZones.Count, 0);
+            foreach (var zone in itemsWithZones)
             {
-                var point = kvp.Key;
-                var properties = kvp.Value;
-
+                var point = zone.Key;
+                var properties = zone.Value;
                 if (point.ModelItem != null)
+                {
                     Properties.Properties_Functions.AddPropertiesToModelItem(point.ModelItem, "Zone", properties);
-
-                SetContextState("Adicionando propriedades", itemsWithZones.Count, ++processedCount);
+                    System.Windows.Forms.Application.DoEvents();
+                }
+                Context.Instance._state["state"] = ("Adicionando propriedades", itemsWithZones.Count, count);
+                count++;
             }
-
-            SetContextState("done", 0, 0);
+            Context.Instance._state["state"] = ("done", 0, 0);
         }
 
         public static Dictionary<BoxedModelitem, Dictionary<string, string>> GetZoneGroupedPointsFromClash()
@@ -36,107 +35,119 @@ namespace GVC_EXPORTER_PLUGIN.Functions.Clash_
                 return new Dictionary<BoxedModelitem, Dictionary<string, string>>();
 
             var allPoints = new HashSet<BoxedModelitem>(Context.Instance._points);
-            var zonesPerPoint = GroupZonesByClash(clashGroup, allPoints);
-            var bestZones = DetermineBestZonePerPoint(zonesPerPoint);
-            AssignRemainingZonesByContainment(allPoints, bestZones);
+            var pointsDictionary = Context.Instance._points.ToDictionary(p => p.ModelItem);
+            var zonesPerPoint = ProcessClashes();
+            var bestZonePerPoint = BestZonePerPoint();
 
-            return bestZones;
-        }
-
-        private static Dictionary<BoxedModelitem, (List<BoxedModelitem> zones, List<double> distances, List<double> volumes)>
-        GroupZonesByClash(ClashResultGroup clashGroup, HashSet<BoxedModelitem> allPoints)
-        {
-            var zoneItems = new Dictionary<BoxedModelitem, (List<BoxedModelitem>, List<double>, List<double>)>();
-            int count = 0;
-
-            SetContextState("Juntando clashes por ponto", clashGroup.Children.Count, 0);
-
-            foreach (var clash in clashGroup.Children.OfType<ClashResult>())
+            Dictionary<BoxedModelitem, (List<BoxedModelitem> zones, List<double> distances, List<double> volumes)> ProcessClashes()
             {
-                var zone = Context.Instance._ZonePoints.FirstOrDefault(z => z.ModelItem.Equals(clash.Item1));
-                var point = Context.Instance._points.FirstOrDefault(p => p.ModelItem.Equals(clash.Item2));
+                var zoneItems = new Dictionary<BoxedModelitem, (List<BoxedModelitem>, List<double>, List<double>)>();
 
-                if (zone == null || point == null) continue;
+                var clashItems = clashGroup.Children.OfType<ClashResult>().ToList();
 
-                if (!zoneItems.TryGetValue(point, out var entry))
-                    entry = zoneItems[point] = (new List<BoxedModelitem>(), new List<double>(), new List<double>());
+                int count__ = 0;
+                Context.Instance._state["state"] = ("Juntando clashes por ponto", clashItems.Count, 0);
 
-                entry.Item1.Add(zone);
-                entry.Item2.Add(clash.Distance);
-                entry.Item3.Add(clash.ViewBounds.Volume);
-
-                allPoints.Remove(point);
-
-                SetContextState("Juntando clashes por ModelItem", clashGroup.Children.Count, ++count);
-            }
-
-            SetContextState("done", 0, 0);
-            return zoneItems;
-        }
-
-        private static Dictionary<BoxedModelitem, Dictionary<string, string>>
-        DetermineBestZonePerPoint(Dictionary<BoxedModelitem, (List<BoxedModelitem> zones, List<double> distances, List<double> volumes)> zonesPerPoint)
-        {
-            var bestZone = new Dictionary<BoxedModelitem, Dictionary<string, string>>();
-            int count = 0;
-
-            SetContextState("Definindo melhor ocorrência de clash", zonesPerPoint.Count, 0);
-
-            foreach (var kvp in zonesPerPoint)
-            {
-                var point = kvp.Key;
-                var zones = kvp.Value.zones;
-                var distances = kvp.Value.distances;
-                var volumes = kvp.Value.volumes;
-
-                int bestIndex = -1;
-                double bestVolume = double.MinValue;
-                double bestDistance = double.MaxValue;
-
-                for (int i = 0; i < zones.Count; i++)
+                foreach (var clash in clashItems)
                 {
-                    if (volumes[i] > bestVolume || (volumes[i] == bestVolume && distances[i] < bestDistance))
+                    var zoneItem = clash.Item1;
+                    var pointItem = clash.Item2;
+
+                    var zone = Context.Instance._ZonePoints.FirstOrDefault(z => z.ModelItem.Equals(zoneItem));
+                    pointsDictionary.TryGetValue(pointItem, out var point);
+
+                    if (zone == null || point == null)
+                        continue;
+
+                    if (!zoneItems.TryGetValue(point, out var entry))
                     {
-                        bestVolume = volumes[i];
-                        bestDistance = distances[i];
-                        bestIndex = i;
+                        entry = (new List<BoxedModelitem>(), new List<double>(), new List<double>());
+                        zoneItems[point] = entry;
                     }
+
+                    entry.Item1.Add(zone);
+                    entry.Item2.Add(clash.Distance);
+                    entry.Item3.Add(clash.ViewBounds.Volume);
+
+                    allPoints.Remove(point);
+                    count__++;
+                    Context.Instance._state["state"] = ("Juntando clashes por ModelItem", clashItems.Count, count__);
                 }
 
-                if (bestIndex >= 0)
-                    bestZone[point] = GetCustomProperties(zones[bestIndex].ModelItem);
+                Context.Instance._state["state"] = ("done", 0, 0);
 
-                SetContextState("Definindo melhor ocorrência de clash", zonesPerPoint.Count, ++count);
+                return zoneItems;
             }
 
-            SetContextState("done", 0, 0);
-            return bestZone;
-        }
+            Dictionary<BoxedModelitem, Dictionary<string, string>> BestZonePerPoint()
+            {
+                var bestZone = new Dictionary<BoxedModelitem, Dictionary<string, string>>();
 
-        private static void AssignRemainingZonesByContainment(
-            HashSet<BoxedModelitem> remainingPoints,
-            Dictionary<BoxedModelitem, Dictionary<string, string>> bestZonePerPoint)
-        {
+                int count_ = 0;
+                Context.Instance._state["state"] = ("Definindo melhor ocorrencia de clash", zonesPerPoint.Count, 0);
+                foreach (var kv in zonesPerPoint)
+                {
+                    var point = kv.Key;
+                    var zoneList = kv.Value.zones;
+                    var distanceList = kv.Value.distances;
+                    var volumeList = kv.Value.volumes;
+
+                    int bestIndex = -1;
+                    double bestVolume = double.MinValue;
+                    double bestDistance = double.MaxValue;
+
+                    for (int i = 0; i < zoneList.Count; i++)
+                    {
+                        double volume = volumeList[i];
+                        double distance = distanceList[i];
+
+                        if (volume > bestVolume || (volume == bestVolume && distance < bestDistance))
+                        {
+                            bestVolume = volume;
+                            bestDistance = distance;
+                            bestIndex = i;
+                        }
+                    }
+
+                    if (bestIndex >= 0 && bestIndex < zoneList.Count)
+                    {
+                        var props = GetCustomProperties(zoneList[bestIndex].ModelItem);
+                        bestZone[point] = props;
+                    }
+                    count_++;
+                    Context.Instance._state["state"] = ("Definindo melhor ocorrencia de clash", zonesPerPoint.Count, count_);
+                }
+
+                Context.Instance._state["state"] = ("done", 0, 0);
+                return bestZone;
+            }
+
             int count = 0;
-            SetContextState("Classificando ModelItems restantes", remainingPoints.Count, 0);
-
-            foreach (var point in remainingPoints)
+            Context.Instance._state["state"] = ("Classificando ModelItems restantes", allPoints.Count, 0);
+            foreach (var point in allPoints)
             {
                 foreach (var zone in Context.Instance._ZonePoints)
                 {
-                    if (zone.OrientedBoundingBox == null || point.OrientedBoundingBox == null)
-                        continue;
+                    var obb = zone.OrientedBoundingBox;
+                    if (obb != null && point.OrientedBoundingBox != null)
+                    {
+                        var allInside = point.OrientedBoundingBox.GetCorners().All(corner => obb.Contains(corner));
+                        if (allInside)
+                        {
+                            var props = GetCustomProperties(zone.ModelItem);
+                            bestZonePerPoint[point] = props;
 
-                    bool allInside = point.OrientedBoundingBox.GetCorners().All(corner => zone.OrientedBoundingBox.Contains(corner));
-                    if (!allInside) continue;
+                            count++;
+                            Context.Instance._state["state"] = ("Classificando ModelItems restantes", allPoints.Count, count);
 
-                    bestZonePerPoint[point] = GetCustomProperties(zone.ModelItem);
-                    SetContextState("Classificando ModelItems restantes", remainingPoints.Count, ++count);
-                    break;
+                            break;
+                        }
+                    }
                 }
             }
+            Context.Instance._state["state"] = ("done", 0, 0);
 
-            SetContextState("done", 0, 0);
+            return bestZonePerPoint;
         }
 
         private static Dictionary<string, string> GetCustomProperties(ModelItem item)
@@ -152,11 +163,6 @@ namespace GVC_EXPORTER_PLUGIN.Functions.Clash_
                 dict[key] = value;
             }
             return dict;
-        }
-
-        private static void SetContextState(string status, int total, int progress)
-        {
-            Context.Instance._state["state"] = (status, total, progress);
         }
     }
 
@@ -205,6 +211,8 @@ namespace GVC_EXPORTER_PLUGIN.Functions.Clash_
                 resultGroup = (ClashResultGroup)test.Children[existingGroupIndex];
             }
 
+            int count = 0;
+            Context.Instance._state["state"] = ("Gerando ClashGroup", test.Children.Count, count);
             for (int i = test.Children.Count - 1; i >= 0; i--)
             {
                 var child = test.Children[i];
@@ -212,6 +220,8 @@ namespace GVC_EXPORTER_PLUGIN.Functions.Clash_
                 {
                     clashTests.TestsMove(test, i, resultGroup, 0);
                 }
+                Context.Instance._state["state"] = ("Gerando ClashGroup", test.Children.Count, count);
+                count++;
             }
 
             return resultGroup;
@@ -220,7 +230,7 @@ namespace GVC_EXPORTER_PLUGIN.Functions.Clash_
         internal static void CreateClashTest(string name, List<BoxedModelitem> points, List<BoxedModelitem> zones)
         {
             var doc = Application.ActiveDocument;
-            var clashTest = CreateClashTest(name, CreateModelItemCollection(points), CreateModelItemCollection(zones));
+            var clashTest = CreateClashTest(name, Context.Instance._items, CreateModelItemCollection(zones));
             AddClashTest(clashTest);
         }
 
